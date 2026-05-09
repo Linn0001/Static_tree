@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cache-Oblivious Static Tree</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;padding:2rem}
+h1{font-size:1.4rem;font-weight:600;color:#f8fafc;margin-bottom:.25rem}
+.subtitle{font-size:.85rem;color:#94a3b8;margin-bottom:2rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+.card{background:#1e2130;border:1px solid #2d3348;border-radius:12px;padding:1.25rem}
+.card-label{font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem}
+.card-val{font-size:1.8rem;font-weight:700}
+.card-sub{font-size:.75rem;color:#64748b;margin-top:.3rem}
+.green{color:#4ade80}.yellow{color:#facc15}.red{color:#f87171}.blue{color:#60a5fa}
+.section{background:#1e2130;border:1px solid #2d3348;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem}
+.section-title{font-size:.9rem;font-weight:600;color:#cbd5e1;margin-bottom:1.2rem;text-transform:uppercase;letter-spacing:.06em}
+canvas{width:100%!important}
+.legend{display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:#94a3b8}
+.leg-dot{width:10px;height:10px;border-radius:2px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;padding:.6rem .8rem;color:#64748b;font-weight:500;border-bottom:1px solid #2d3348;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
+td{padding:.55rem .8rem;border-bottom:1px solid #1a1f2e;color:#cbd5e1}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:600}
+.badge-green{background:#14532d;color:#4ade80}
+.badge-yellow{background:#713f12;color:#fbbf24}
+.badge-red{background:#450a0a;color:#f87171}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem}
+.info-block h3{font-size:.85rem;font-weight:600;color:#94a3b8;margin-bottom:.8rem}
+.info-row{display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #1a1f2e;font-size:.8rem}
+.info-key{color:#64748b}.info-val{color:#e2e8f0;font-weight:500}
+.algo-card{background:#141720;border:1px solid #2d3348;border-radius:8px;padding:1rem;margin-top:.75rem}
+.algo-name{font-size:.85rem;font-weight:600;margin-bottom:.4rem}
+.algo-desc{font-size:.75rem;color:#64748b;line-height:1.5}
+.bar-wrap{margin-top:.6rem}
+.bar-bg{background:#1a1f2e;border-radius:4px;height:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s}
+</style>
+</head>
+<body>
+<h1>Cache-Oblivious Static Tree</h1>
+<p class="subtitle">Benchmark de estructuras de búsqueda estática: Pointer BST vs Eytzinger layout vs vEB layout</p>
+
+<div class="grid" id="metric-cards"></div>
+
+<div class="section">
+  <div class="section-title">Tiempo promedio por estructura (ms) — 1M queries</div>
+  <div class="legend">
+    <span class="leg-item"><span class="leg-dot" style="background:#f87171"></span>Pointer BST</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#4ade80"></span>Eytzinger Layout</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#60a5fa"></span>vEB Layout</span>
+  </div>
+  <div style="position:relative;height:280px"><canvas id="barChart"></canvas></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Tiempo por experimento (ms)</div>
+  <div class="legend">
+    <span class="leg-item"><span class="leg-dot" style="background:#f87171"></span>BST</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#4ade80"></span>Eytzinger</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#60a5fa"></span>vEB</span>
+  </div>
+  <div style="position:relative;height:260px"><canvas id="lineChart"></canvas></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Tabla de resultados</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Exp</th><th>BST (ms)</th><th>Eytzinger (ms)</th><th>vEB (ms)</th>
+          <th>Speedup Eyt</th><th>Speedup vEB</th><th>Ganador</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="info-grid">
+  <div>
+    <div class="section">
+      <div class="section-title">Parámetros del experimento</div>
+      <div id="params"></div>
+    </div>
+  </div>
+  <div>
+    <div class="section">
+      <div class="section-title">Hardware</div>
+      <div id="hw"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">¿Qué nos dicen estos resultados?</div>
+
+  <div class="algo-card" style="border-left: 4px solid #4ade80; padding-left: 1rem;">
+    <div class="algo-name" style="color:#4ade80">El claro ganador: Eytzinger</div>
+    <div class="algo-desc">
+      Eytzinger barrió con la competencia promediando unos 151 ms, ¡casi el doble de rápido que el árbol tradicional! El secreto es que guarda todo juntito en un arreglo. Gracias a esto, el prefetcher del hardware hace su magia: adivina perfecto qué datos vas a necesitar después y los tiene listos en la caché, por lo que la CPU casi nunca se queda de brazos cruzados esperando a la memoria.
+    </div>
+  </div>
+
+  <div class="algo-card" style="border-left: 4px solid #f87171; padding-left: 1rem;">
+    <div class="algo-name" style="color:#f87171">El BST de toda la vida se queda corto</div>
+    <div class="algo-desc">
+      El árbol binario con punteros se quedó bastante atrás, rondando los 267 ms. Aquí se nota el famoso problema del "pointer chasing": como los nodos están regados por cualquier parte de la memoria RAM, cada vez que saltas a un hijo es casi seguro que la caché falle (cache miss). Básicamente, el procesador pierde un montón de tiempo útil solo esperando a que lleguen los datos.
+    </div>
+  </div>
+
+  <div class="algo-card" style="border-left: 4px solid #60a5fa; padding-left: 1rem;">
+    <div class="algo-name" style="color:#60a5fa">vEB: Cuando la teoría choca con la práctica</div>
+    <div class="algo-desc">
+      En papel, la estructura van Emde Boas suena increíble, pero en la práctica terminó siendo la más lenta con 330 ms. Aunque matemáticamente es óptima para evitar fallos de caché, la realidad es que hacer tantos cálculos y llamadas recursivas solo para averiguar el índice del siguiente nodo termina costando más caro de lo que te ahorras. A veces, una estructura más simple y "amigable" para el procesador le gana a las matemáticas complejas.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const DATA = {
+  N: 1048576, Q: 1048576, T: 7,
+  labels: ["1","2","3","4","5","6","7"],
+  bst:    [253.077, 265.900, 316.429, 262.152, 252.018, 262.994, 260.286],
+  eyt:    [145.261, 166.334, 181.532, 137.864, 137.774, 146.441, 142.244],
+  veb:    [325.354, 348.330, 329.584, 346.275, 312.755, 334.666, 315.817],
+  bst_avg: 267.551, eyt_avg: 151.064, veb_avg: 330.397,
+  sp_eyt: 1.771, sp_veb: 0.810
+};
+
+const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+const mn  = arr => Math.min(...arr);
+const mx  = arr => Math.max(...arr);
+
+const cards = [
+  {label:"N (elementos)", val: (DATA.N/1e6).toFixed(1)+"M", sub:"integers 32-bit", cls:"blue"},
+  {label:"Q (consultas)", val: (DATA.Q/1e6).toFixed(1)+"M", sub:"50% hits / 50% misses", cls:"blue"},
+  {label:"Speedup Eytzinger", val: DATA.sp_eyt.toFixed(2)+"×", sub:"vs Pointer BST (avg)", cls:"green"},
+  {label:"Speedup vEB (actual)", val: DATA.sp_veb.toFixed(2)+"×", sub:"overhead recursivo", cls:"yellow"},
+  {label:"BST avg", val: DATA.bst_avg.toFixed(0)+"ms", sub: (DATA.Q/DATA.bst_avg/1000).toFixed(1)+" M queries/s", cls:"red"},
+  {label:"Eytzinger avg", val: DATA.eyt_avg.toFixed(0)+"ms", sub: (DATA.Q/DATA.eyt_avg/1000).toFixed(1)+" M queries/s", cls:"green"},
+];
+document.getElementById('metric-cards').innerHTML = cards.map(c=>`
+  <div class="card">
+    <div class="card-label">${c.label}</div>
+    <div class="card-val ${c.cls}">${c.val}</div>
+    <div class="card-sub">${c.sub}</div>
+  </div>`).join('');
+
+const tbody = document.getElementById('table-body');
+const rows = DATA.labels.map((l,i)=>{
+  const sp_e = (DATA.bst[i]/DATA.eyt[i]).toFixed(3);
+  const sp_v = (DATA.bst[i]/DATA.veb[i]).toFixed(3);
+  const winner = DATA.eyt[i] < DATA.bst[i] && DATA.eyt[i] < DATA.veb[i] ? 'Eytzinger'
+               : DATA.veb[i] < DATA.bst[i] ? 'vEB' : 'BST';
+  const wbadge = winner==='Eytzinger' ? 'green' : winner==='vEB' ? 'yellow' : 'red';
+  return `<tr>
+    <td>${l}</td>
+    <td class="red">${DATA.bst[i].toFixed(1)}</td>
+    <td class="green">${DATA.eyt[i].toFixed(1)}</td>
+    <td class="blue">${DATA.veb[i].toFixed(1)}</td>
+    <td><span class="badge badge-green">${sp_e}×</span></td>
+    <td><span class="badge ${sp_v>=1?'badge-yellow':'badge-red'}">${sp_v}×</span></td>
+    <td><span class="badge badge-${wbadge}">${winner}</span></td>
+  </tr>`;
+}).join('');
+const avgRow = `<tr style="font-weight:600;border-top:2px solid #2d3348">
+    <td>AVG</td>
+    <td class="red">${DATA.bst_avg.toFixed(1)}</td>
+    <td class="green">${DATA.eyt_avg.toFixed(1)}</td>
+    <td class="blue">${DATA.veb_avg.toFixed(1)}</td>
+    <td><span class="badge badge-green">${DATA.sp_eyt.toFixed(3)}×</span></td>
+    <td><span class="badge badge-yellow">${DATA.sp_veb.toFixed(3)}×</span></td>
+    <td><span class="badge badge-green">Eytzinger</span></td>
+  </tr>`;
+tbody.innerHTML = rows + avgRow;
+
+document.getElementById('params').innerHTML = [
+  ['Elementos (N)', (DATA.N).toLocaleString()],
+  ['Consultas (Q)', (DATA.Q).toLocaleString()],
+  ['Repeticiones (T)', DATA.T],
+  ['Tipo de clave', 'int32_t (32-bit signed)'],
+  ['Distribución queries', 'Uniform random [1, 2N]'],
+  ['Compilador', 'g++ -O3 -march=native'],
+  ['Seed', '42'],
+].map(([k,v])=>`<div class="info-row"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`).join('');
+
+document.getElementById('hw').innerHTML = [
+  ['CPU', 'Intel Xeon @ 2.80 GHz'],
+  ['L1 cache', '32 KB'],
+  ['L2 cache', '1 MB'],
+  ['L3 cache', '33 MB'],
+  ['Cache line', '64 bytes'],
+  ['OS', 'Linux (container)'],
+  ['RAM', 'Shared (cloud)'],
+].map(([k,v])=>`<div class="info-row"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`).join('');
+
+const GRID = '#1a1f2e';
+const TXT  = '#64748b';
+
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Pointer BST', 'Eytzinger Layout', 'vEB Layout'],
+    datasets: [{
+      label: 'Tiempo promedio (ms)',
+      data: [DATA.bst_avg, DATA.eyt_avg, DATA.veb_avg],
+      backgroundColor: ['rgba(248,113,113,0.7)', 'rgba(74,222,128,0.7)', 'rgba(96,165,250,0.7)'],
+      borderColor: ['#f87171','#4ade80','#60a5fa'],
+      borderWidth: 1.5,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: {display:false},
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.raw.toFixed(2)} ms  (${(DATA.Q/ctx.raw/1000).toFixed(2)} M q/s)`
+        }
+      }
+    },
+    scales: {
+      x: { ticks:{color:TXT}, grid:{color:GRID} },
+      y: { ticks:{color:TXT, callback:v=>v+'ms'}, grid:{color:GRID}, beginAtZero:true }
+    }
+  }
+});
+
+new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: {
+    labels: DATA.labels,
+    datasets: [
+      { label:'BST', data:DATA.bst, borderColor:'#f87171', backgroundColor:'rgba(248,113,113,0.08)',
+        tension:.3, pointRadius:4, fill:true },
+      { label:'Eytzinger', data:DATA.eyt, borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.08)',
+        tension:.3, pointRadius:4, fill:true },
+      { label:'vEB', data:DATA.veb, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.08)',
+        tension:.3, pointRadius:4, fill:true },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins: { legend:{display:false} },
+    scales: {
+      x: { ticks:{color:TXT}, grid:{color:GRID} },
+      y: { ticks:{color:TXT, callback:v=>v+'ms'}, grid:{color:GRID} }
+    }
+  }
+});
+</script>
+</body>
+</html>
